@@ -1,5 +1,6 @@
 const { response } = require('express');
 const express = require('express');
+const inquirer = require("inquirer");
 // Import and require mysql2
 const mysql = require('mysql2');
 
@@ -21,7 +22,13 @@ const db = mysql.createConnection(
         database: 'tracker_db'
     },
     console.log(`Connected to the tracker_db database.`)
-);
+)
+
+db.connect(function(err) {
+    if(err) throw err;
+    console.log("SQL Connected");
+    initialQuestions();
+});
 
 //User input Questions
 const initialQuestions = () => {
@@ -74,7 +81,7 @@ const initialQuestions = () => {
 }
 
 //View All Departments
-const viewAllDepartments = async (db) => {
+const viewAllDepartments = () => {
     db.query("SELECT * FROM department", (err, results) => {
         if (err) {
             console.log(err)
@@ -85,7 +92,7 @@ const viewAllDepartments = async (db) => {
 }
 
 //View All Roles
-const viewAllRoles = async (db) => {
+const viewAllRoles = () => {
     db.query("SELECT * FROM role", (err, results) => {
         if (err) {
             console.log(err)
@@ -96,7 +103,7 @@ const viewAllRoles = async (db) => {
 }
 
 //View All Employees
-const viewAllEmployees = async (db) => {
+const viewAllEmployees = () => {
     db.query("SELECT * FROM employee", (err, results) => {
         if (err) {
             console.log(err)
@@ -216,7 +223,7 @@ const updateEmployeeRole = async () => {
     inquirer.prompt([
         {
             type: "list",
-            name: "employeerole",
+            name: "employeename",
             message: "Which Employee Role Do You Want To Update",
             choices: [
                 "Mike Chan",
@@ -228,10 +235,25 @@ const updateEmployeeRole = async () => {
                 "Tom Allen",
                 "Sowmya Nagayya"
             ]
+        },
+        {
+            type: "list",
+            name: "employeerole",
+            message: "Which Role Do You Want To assign The Selected Employee",
+            choices: [
+                "Sales Lead",
+                "SalesPerson",
+                "Lead Engineer",
+                "Software Engineer",
+                "Account Manager",
+                "Accountant",
+                "Legal Team Lead",
+                "Lawyer"
+            ]
         }
     ])
         .then((response) => {
-            db.query("UPDATE employee SET role_id = ? WHERE id = ?", response.employeerole, (err, result) => {
+            db.query("UPDATE employee SET role_id = ? WHERE id = ?", [response.employeename,response.employeerole], (err, result) => {
                 if (err) {
                     console.log(err)
                 }
