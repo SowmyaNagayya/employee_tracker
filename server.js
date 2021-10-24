@@ -3,7 +3,7 @@ const express = require('express');
 const inquirer = require("inquirer");
 // Import and require mysql2
 const mysql = require('mysql2');
-
+require("console.table");
 const PORT = process.env.PORT || 3001;
 const app = express();
 
@@ -24,8 +24,8 @@ const db = mysql.createConnection(
     console.log(`Connected to the tracker_db database.`)
 )
 
-db.connect(function(err) {
-    if(err) throw err;
+db.connect(function (err) {
+    if (err) throw err;
     console.log("SQL Connected");
     initialQuestions();
 });
@@ -74,7 +74,7 @@ const initialQuestions = () => {
                     updateEmployeeRole();
                     break;
                 case 'Quit':
-                    db.end(); //check for later
+                    // db.end(); //check for later
                     break;
             }
         })
@@ -93,7 +93,7 @@ const viewAllDepartments = () => {
 
 //View All Roles
 const viewAllRoles = () => {
-    db.query("SELECT * FROM role", (err, results) => {
+    db.query("SELECT role.id,role.title,role.salary,department.name FROM role JOIN department ON role.department_id = department.id;", (err, results) => {
         if (err) {
             console.log(err)
         }
@@ -104,7 +104,13 @@ const viewAllRoles = () => {
 
 //View All Employees
 const viewAllEmployees = () => {
-    db.query("SELECT * FROM employee", (err, results) => {
+    db.query(`
+    SELECT employee.id,employee.first_name,employee.last_name,
+    role.title,department.name,employee.manager_id,concat(manager.first_name," ",manager.last_name) manager
+ FROM employee 
+LEFT JOIN role ON employee.role_id = role.id 
+LEFT JOIN department ON role.department_id=department.id
+LEFT JOIN employee manager ON manager.id=employee.manager_id`, (err, results) => {
         if (err) {
             console.log(err)
         }
@@ -136,134 +142,158 @@ const addDepartment = () => {
 
 //Add Role
 const addRole = async () => {
-    inquirer.prompt([
-        {
+    db.query("Select * from department", (err, departmentData) => {
 
-            type: "input",
-            name: "addrole",
-            message: "Enter The Role"
-        },
-        {
-            type: "list",
-            name: "addsalary",
-            message: "Enter The Salary",
-        },
-        {
-            type: "list",
-            name: "departmentOptions",
-            message: "Enter The Department",
-            choices: [
-                "Sales",
-                "Finance",
-                "Engineering",
-                "Legal"
-            ]
-        }
-    ])
-        .then((response) => {
-            db.query("INSERT INTO department (title,salary,department_id) VALUES(?);", [response.addrole, response.addsalary, response.departmentOptions], (err, result) => {
-                if (err) {
-                    console.log(err)
-                }
-                console.log(result);
-                console.log("Added New Role Successfully");
-                initialQuestions();
-            })
+        const departments = departmentData.map(department => {
+            return {
+                name: department.name,
+                value: department.id
+            }
         })
+        inquirer.prompt([
+            {
+
+                type: "input",
+                name: "addrole",
+                message: "Enter The Role"
+            },
+            {
+                type: "input",
+                name: "addsalary",
+                message: "Enter The Salary",
+            },
+            {
+                type: "list",
+                name: "departmentOptions",
+                message: "Enter The Department",
+                choices: departments
+            }
+        ])
+            .then((response) => {
+                db.query("INSERT INTO role (title,salary,department_id) VALUES(?,?,?);",
+                    [response.addrole, response.addsalary, response.departmentOptions], (err, result) => {
+                        if (err) {
+                            console.log(err)
+                        }
+                        console.log(result);
+                        console.log("Added New Role Successfully");
+                        initialQuestions();
+                    })
+            })
+    })
+
 }
 
 //Add Employee
-const addEmployee = () => {
-    inquirer.prompt([
-        {
-            type: "input",
-            name: "firstname",
-            message: "Enter The First Name Of The Employee"
-        },
-        {
-            type: "input",
-            name: "lastname",
-            message: "Enter The Last Name Of The Employee"
-        },
-        {
-            type: "list",
-            name: "roleoptions",
-            message: "Enter The Role Of The Employee",
-            choices: [
-                "Sales Lead",
-                "SalesPerson",
-                "Lead Engineer",
-                "Software Engineer",
-                "Account Manager",
-                "Accountant",
-                "Legal Team Lead",
-                "Lawyer"
-            ]
-        },
-        {
-            type: "input",
-            name: "manager",
-            message: "Who Is The Employee Manager"
-        }
-    ])
-        .then((response) => {
-            db.query("INSERT INTO department (first_name,last_name,role_id,manager_id) VALUES(?);", [response.firstname, response.lastname, response.roleoptions, response.manager], (err, result) => {
-                if (err) {
-                    console.log(err)
-                }
-                console.log(result);
-                console.log("Added New Department Successfully");
-                initialQuestions();
-            })
+const addEmployee = async () => {
+    db.query("Select * from role", (err, roleData) => {
+
+        const roles = roleData.map(role => {
+            return {
+                name: role.title,
+                value: role.id
+            }
         })
+
+        db.query("Select * from employee", (err, employeeData) => {
+            const employees = employeeData.map(employee => {
+                return {
+                    name: employee.first_name + " " + employee.last_name,
+                    value: employee.id
+                }
+            })
+            inquirer.prompt([
+                {
+                    type: "input",
+                    name: "firstname",
+                    message: "Enter The First Name Of The Employee"
+                },
+                {
+                    type: "input",
+                    name: "lastname",
+                    message: "Enter The Last Name Of The Employee"
+                },
+                {
+                    type: "list",
+                    name: "roleoptions",
+                    message: "Enter The Role Of The Employee",
+                    choices: roles
+                },
+                {
+                    type: "list",
+                    name: "manager",
+                    message: "Who Is The Employee Manager",
+                    choices: employees
+                }
+            ])
+                .then((response) => {
+                    db.query("INSERT INTO employee (first_name,last_name,role_id,manager_id) VALUES(?,?,?,?);",
+                        [response.firstname, response.lastname, response.roleoptions, response.manager], (err, result) => {
+                            if (err) {
+                                console.log(err)
+                            }
+                            console.log(result);
+                            console.log("Added New Department Successfully");
+                            initialQuestions();
+                        })
+                })
+        })
+    })
+
 }
 
 //Update Employee Role
 const updateEmployeeRole = async () => {
-    inquirer.prompt([
-        {
-            type: "list",
-            name: "employeename",
-            message: "Which Employee Role Do You Want To Update",
-            choices: [
-                "Mike Chan",
-                "Ashley Rodriguez",
-                "Kevin Tupik",
-                "Kunal Singh",
-                "Malia Brown",
-                "Sarah Lourd",
-                "Tom Allen",
-                "Sowmya Nagayya"
-            ]
-        },
-        {
-            type: "list",
-            name: "employeerole",
-            message: "Which Role Do You Want To assign The Selected Employee",
-            choices: [
-                "Sales Lead",
-                "SalesPerson",
-                "Lead Engineer",
-                "Software Engineer",
-                "Account Manager",
-                "Accountant",
-                "Legal Team Lead",
-                "Lawyer"
-            ]
-        }
-    ])
-        .then((response) => {
-            db.query("UPDATE employee SET role_id = ? WHERE id = ?", [response.employeename,response.employeerole], (err, result) => {
-                if (err) {
-                    console.log(err)
-                }
-                console.log(result);
-                console.log("Updated Employee Role Successfully");
-                initialQuestions();
-            })
-        })
-}
+    db.query("Select * from employee", (err, employeeUpdate) => {
 
+        const employeeupdates = employeeUpdate.map(employee => {
+            return {
+                name: employee.first_name + " " + employee.last_name,
+                value: employee.id
+            }
+        })
+        db.query("Select * from role", (err, employeeRoleUpdate) => {
+            const roleUpdates = employeeRoleUpdate.map(role => {
+                return {
+                    name: role.title,
+                    value: role.id
+                }
+            })
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "employeeid",
+                    message: "Which Employee Role Do You Want To Update",
+                    choices: employeeupdates
+    
+                },
+                {
+                    type: "list",
+                    name: "roleid",
+                    message: "Which Role Do You Want To assign The Selected Employee",
+                    choices: roleUpdates
+    
+                }
+            ])
+                .then((response) => {
+                    db.query("UPDATE employee SET role_id = ? WHERE id = ?", 
+                    [response.roleid, response.employeeid], (err, result) => {
+                        if (err) {
+                            console.log(err)
+                        }
+                        console.log(result);
+                        console.log("Updated Employee Role Successfully");
+                        initialQuestions();
+                    })
+                })
+        })
+
+
+        
+    })
+
+
+    }
 
 
 
