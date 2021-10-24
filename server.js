@@ -106,11 +106,11 @@ const viewAllRoles = () => {
 const viewAllEmployees = () => {
     db.query(`
     SELECT employee.id,employee.first_name,employee.last_name,
-    role.title,department.name,employee.manager_id,concat(manager.first_name," ",manager.last_name) manager
- FROM employee 
-LEFT JOIN role ON employee.role_id = role.id 
-LEFT JOIN department ON role.department_id=department.id
-LEFT JOIN employee manager ON manager.id=employee.manager_id`, (err, results) => {
+    role.title,department.name,role.salary,concat(manager.first_name," ",manager.last_name) manager
+    FROM employee 
+    LEFT JOIN role ON employee.role_id = role.id 
+    LEFT JOIN department ON role.department_id=department.id
+    LEFT JOIN employee manager ON manager.id=employee.manager_id`, (err, results) => {
         if (err) {
             console.log(err)
         }
@@ -143,7 +143,7 @@ const addDepartment = () => {
 //Add Role
 const addRole = async () => {
     db.query("Select * from department", (err, departmentData) => {
-
+        //formatted
         const departments = departmentData.map(department => {
             return {
                 name: department.name,
@@ -187,7 +187,6 @@ const addRole = async () => {
 //Add Employee
 const addEmployee = async () => {
     db.query("Select * from role", (err, roleData) => {
-
         const roles = roleData.map(role => {
             return {
                 name: role.title,
@@ -265,35 +264,35 @@ const updateEmployeeRole = async () => {
                     name: "employeeid",
                     message: "Which Employee Role Do You Want To Update",
                     choices: employeeupdates
-    
+
                 },
                 {
                     type: "list",
                     name: "roleid",
                     message: "Which Role Do You Want To assign The Selected Employee",
                     choices: roleUpdates
-    
+
                 }
             ])
                 .then((response) => {
-                    db.query("UPDATE employee SET role_id = ? WHERE id = ?", 
-                    [response.roleid, response.employeeid], (err, result) => {
-                        if (err) {
-                            console.log(err)
-                        }
-                        console.log(result);
-                        console.log("Updated Employee Role Successfully");
-                        initialQuestions();
-                    })
+                    db.query("UPDATE employee SET role_id = ? WHERE id = ?",
+                        [response.roleid, response.employeeid], (err, result) => {
+                            if (err) {
+                                console.log(err)
+                            }
+                            console.log(result);
+                            console.log("Updated Employee Role Successfully");
+                            initialQuestions();
+                        })
                 })
         })
 
 
-        
+
     })
 
 
-    }
+}
 
 
 
